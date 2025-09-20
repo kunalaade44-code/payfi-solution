@@ -1,0 +1,2540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayFi - Web3 Payments Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+       
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+       
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+       
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+       
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+       
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+       
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+       
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+       
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+       
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+       
+        .nft-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+       
+        .nft-shimmer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+            transform: translateX(-100%);
+            animation: shimmer 2s infinite;
+        }
+       
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+       
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+       
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+       
+        .floating-animation {
+            animation: floating 3s ease-in-out infinite;
+        }
+       
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+       
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+       
+        .text-glow {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+       
+        .morphing-bg {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+       
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+       
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float 6s infinite linear;
+        }
+       
+        @keyframes particle-float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Main App Component
+        const PayFiApp = () => {
+            const [currentView, setCurrentView] = useState('dashboard');
+            const [notifications, setNotifications] = useState([]);
+            const [user, setUser] = useState(null);
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+           
+            // Check for saved user session
+            useEffect(() => {
+                const savedUser = localStorage.getItem('payfi_user');
+                if (savedUser) {
+                    setUser(JSON.parse(savedUser));
+                    setIsLoggedIn(true);
+                }
+            }, []);
+
+            // Update user balance
+            const updateBalance = (amount, type = 'subtract') => {
+                setUser(prevUser => {
+                    const currentBalance = parseFloat(prevUser.balance);
+                    const changeAmount = parseFloat(amount);
+                   
+                    let newBalance;
+                    if (type === 'add') {
+                        newBalance = currentBalance + changeAmount;
+                    } else {
+                        newBalance = Math.max(0, currentBalance - changeAmount); // Prevent negative balance
+                    }
+                   
+                    const updatedUser = {
+                        ...prevUser,
+                        balance: newBalance.toFixed(2)
+                    };
+                   
+                    // Save to localStorage
+                    localStorage.setItem('payfi_user', JSON.stringify(updatedUser));
+                   
+                    return updatedUser;
+                });
+            };
+
+            // Update PayFi coins
+            const updatePayFiCoins = (amount, type = 'add') => {
+                setUser(prevUser => {
+                    const currentCoins = parseInt(prevUser.payfiCoins || 0);
+                    const changeAmount = parseInt(amount);
+                   
+                    let newCoins;
+                    if (type === 'add') {
+                        newCoins = currentCoins + changeAmount;
+                    } else {
+                        newCoins = Math.max(0, currentCoins - changeAmount);
+                    }
+                   
+                    const updatedUser = {
+                        ...prevUser,
+                        payfiCoins: newCoins
+                    };
+                   
+                    // Save to localStorage
+                    localStorage.setItem('payfi_user', JSON.stringify(updatedUser));
+                   
+                    return updatedUser;
+                });
+            };
+
+            const addNotification = (notification) => {
+                const newNotification = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    ...notification
+                };
+                setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
+            };
+
+            const removeNotification = (id) => {
+                setNotifications(prev => prev.filter(n => n.id !== id));
+            };
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+                setIsLoggedIn(true);
+                localStorage.setItem('payfi_user', JSON.stringify(userData));
+                addNotification({
+                    title: 'Welcome to PayFi!',
+                    message: `Hello ${userData.firstName}, you're now logged in.`,
+                    type: 'success'
+                });
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setIsLoggedIn(false);
+                localStorage.removeItem('payfi_user');
+                setCurrentView('dashboard');
+                addNotification({
+                    title: 'Logged Out',
+                    message: 'You have been successfully logged out.',
+                    type: 'info'
+                });
+            };
+
+            if (!isLoggedIn) {
+                return <LoginPage onLogin={handleLogin} />;
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <Header
+                        user={user}
+                        notifications={notifications}
+                        removeNotification={removeNotification}
+                        onLogout={handleLogout}
+                        addNotification={addNotification}
+                    />
+                   
+                    <div className="flex">
+                        <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+                       
+                        <main className="flex-1 p-6">
+                            {currentView === 'dashboard' && (
+                                <Dashboard
+                                    user={user}
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                    updatePayFiCoins={updatePayFiCoins}
+                                    setCurrentView={setCurrentView}
+                                />
+                            )}
+                            {currentView === 'send' && (
+                                <SendMoney
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                    updatePayFiCoins={updatePayFiCoins}
+                                />
+                            )}
+                            {currentView === 'subscriptions' && (
+                                <Subscriptions
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                />
+                            )}
+                            {currentView === 'marketplace' && (
+                                <Marketplace
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                    updatePayFiCoins={updatePayFiCoins}
+                                />
+                            )}
+                            {currentView === 'bills' && (
+                                <BillPayment
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                />
+                            )}
+                            {currentView === 'p2p' && (
+                                <P2PWallets
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                />
+                            )}
+                            {currentView === 'tipping' && (
+                                <CreatorTipping
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                    updatePayFiCoins={updatePayFiCoins}
+                                />
+                            )}
+                            {currentView === 'crowdfunding' && (
+                                <Crowdfunding
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                    updatePayFiCoins={updatePayFiCoins}
+                                />
+                            )}
+                            {currentView === 'campus' && (
+                                <CampusEconomy
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                />
+                            )}
+                            {currentView === 'rent' && (
+                                <RentPayment
+                                    addNotification={addNotification}
+                                    updateBalance={updateBalance}
+                                />
+                            )}
+                        </main>
+                    </div>
+                   
+                    <NotificationToasts
+                        notifications={notifications}
+                        removeNotification={removeNotification}
+                    />
+                </div>
+            );
+        };
+
+        // Login Page Component
+        const LoginPage = ({ onLogin }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [formData, setFormData] = useState({
+                firstName: '',
+                lastName: '',
+                email: '',
+                mobile: '',
+                password: ''
+            });
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setIsLoading(true);
+                setError('');
+
+                // Simulate API call
+                setTimeout(() => {
+                    if (isLogin) {
+                        // Check if user exists in localStorage
+                        const existingUsers = JSON.parse(localStorage.getItem('payfi_users') || '[]');
+                        const user = existingUsers.find(u => u.email === formData.email && u.password === formData.password);
+                       
+                        if (user) {
+                            onLogin(user);
+                        } else {
+                            setError('Invalid email or password. Please sign up first.');
+                            setIsLoading(false);
+                            return;
+                        }
+                    } else {
+                        // Registration - check if user already exists
+                        const existingUsers = JSON.parse(localStorage.getItem('payfi_users') || '[]');
+                        const userExists = existingUsers.find(u => u.email === formData.email);
+                       
+                        if (userExists) {
+                            setError('User already exists. Please sign in instead.');
+                            setIsLoading(false);
+                            return;
+                        }
+                       
+                        // Create new user
+                        const userData = {
+                            firstName: formData.firstName,
+                            lastName: formData.lastName,
+                            email: formData.email,
+                            mobile: formData.mobile,
+                            password: formData.password,
+                            balance: '100.00',
+                            payfiCoins: 50
+                        };
+                       
+                        // Save to users list
+                        existingUsers.push(userData);
+                        localStorage.setItem('payfi_users', JSON.stringify(existingUsers));
+                       
+                        onLogin(userData);
+                    }
+                    setIsLoading(false);
+                }, 1500);
+            };
+
+            return (
+                <div className="min-h-screen morphing-bg flex items-center justify-center p-6">
+                    <div className="glass-card rounded-3xl p-8 max-w-md w-full">
+                        <div className="text-center mb-8">
+                            <div className="w-20 h-20 gradient-bg rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span className="text-white font-bold text-3xl">P</span>
+                            </div>
+                            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                                {isLogin ? 'Welcome Back' : 'Join PayFi'}
+                            </h1>
+                            <p className="text-gray-600">
+                                {isLogin ? 'Sign in to your account' : 'Create your PayFi account'}
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                    <p className="text-red-600 text-sm">{error}</p>
+                                </div>
+                            )}
+                           
+                            {!isLogin && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                First Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.firstName}
+                                                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="John"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Last Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.lastName}
+                                                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Doe"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Mobile Number
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={formData.mobile}
+                                            onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="+1 (555) 123-4567"
+                                            required
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email Address
+                                </label>
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="john@example.com"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full gradient-bg text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg transition-all disabled:opacity-50"
+                            >
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <div className="loading-spinner"></div>
+                                        <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
+                                    </div>
+                                ) : (
+                                    isLogin ? 'Sign In' : 'Create Account'
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-600">
+                                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                                <button
+                                    onClick={() => setIsLogin(!isLogin)}
+                                    className="text-blue-600 font-medium hover:text-blue-700"
+                                >
+                                    {isLogin ? 'Sign Up' : 'Sign In'}
+                                </button>
+                            </p>
+                        </div>
+
+                        {isLogin && (
+                            <div className="mt-4 text-center">
+                                <p className="text-sm text-gray-500">
+                                    Please sign up first if you don't have an account
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Header Component
+        const Header = ({ user, notifications, removeNotification, onLogout, addNotification }) => {
+            const [showNotifications, setShowNotifications] = useState(false);
+            const [showProfileMenu, setShowProfileMenu] = useState(false);
+           
+            return (
+                <header className="gradient-bg text-white shadow-lg sticky top-0 z-40">
+                    <div className="container mx-auto px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                                    <span className="text-white font-bold text-xl">P</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold">PayFi</h1>
+                                    <p className="text-white/80 text-sm">Web3 Payments Platform</p>
+                                </div>
+                            </div>
+                           
+                            <div className="flex items-center space-x-6">
+                                <div className="hidden md:block text-right">
+                                    <p className="text-white/80 text-sm">Balance</p>
+                                    <p className="font-bold text-lg">{user?.balance} SHM</p>
+                                </div>
+                               
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowNotifications(!showNotifications)}
+                                        className="relative p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-all"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5"></path>
+                                        </svg>
+                                        {notifications.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                                {notifications.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                   
+                                    {showNotifications && (
+                                        <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto">
+                                            <div className="p-4 border-b border-gray-100">
+                                                <h3 className="font-bold text-gray-800">Notifications</h3>
+                                            </div>
+                                            {notifications.length === 0 ? (
+                                                <div className="p-8 text-center text-gray-500">
+                                                    <p>No notifications yet</p>
+                                                </div>
+                                            ) : (
+                                                notifications.map(notification => (
+                                                    <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex-1">
+                                                                <h4 className="font-semibold text-gray-800">{notification.title}</h4>
+                                                                <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                                                                <p className="text-xs text-gray-500 mt-2">
+                                                                    {new Date(notification.timestamp).toLocaleTimeString()}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => removeNotification(notification.id)}
+                                                                className="text-gray-400 hover:text-gray-600 ml-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                               
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                        className="flex items-center space-x-3 hover:bg-white/10 rounded-xl p-2 transition-all"
+                                    >
+                                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                                            <span className="text-white font-semibold">
+                                                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                                            </span>
+                                        </div>
+                                        <div className="hidden md:block text-left">
+                                            <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
+                                            <p className="text-white/80 text-sm">{user?.email}</p>
+                                        </div>
+                                        <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+
+                                    {showProfileMenu && (
+                                        <div className="absolute right-0 top-14 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50">
+                                            <div className="px-4 py-3 border-b border-gray-100">
+                                                <p className="font-semibold text-gray-800">{user?.firstName} {user?.lastName}</p>
+                                                <p className="text-sm text-gray-600">{user?.email}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{user?.mobile}</p>
+                                            </div>
+                                           
+                                            <div className="py-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setShowProfileMenu(false);
+                                                        addNotification({
+                                                            title: 'Profile Settings',
+                                                            message: 'Profile settings feature coming soon!',
+                                                            type: 'info'
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
+                                                >
+                                                    <span className="text-xl">👤</span>
+                                                    <span className="text-gray-700">Profile Settings</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowProfileMenu(false);
+                                                        addNotification({
+                                                            title: 'Security Settings',
+                                                            message: 'Security settings feature coming soon!',
+                                                            type: 'info'
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
+                                                >
+                                                    <span className="text-xl">🔒</span>
+                                                    <span className="text-gray-700">Security</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowProfileMenu(false);
+                                                        addNotification({
+                                                            title: 'Preferences',
+                                                            message: 'Preferences feature coming soon!',
+                                                            type: 'info'
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
+                                                >
+                                                    <span className="text-xl">⚙️</span>
+                                                    <span className="text-gray-700">Preferences</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowProfileMenu(false);
+                                                        addNotification({
+                                                            title: 'Help & Support',
+                                                            message: 'Help & Support feature coming soon!',
+                                                            type: 'info'
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
+                                                >
+                                                    <span className="text-xl">❓</span>
+                                                    <span className="text-gray-700">Help & Support</span>
+                                                </button>
+                                            </div>
+                                           
+                                            <div className="border-t border-gray-100 pt-2">
+                                                <button
+                                                    onClick={() => {
+                                                        onLogout();
+                                                        setShowProfileMenu(false);
+                                                    }}
+                                                    className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center space-x-3 text-red-600"
+                                                >
+                                                    <span className="text-xl">🚪</span>
+                                                    <span>Logout</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        // Sidebar Component
+        const Sidebar = ({ currentView, setCurrentView }) => {
+            const menuItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+                { id: 'send', label: 'Send Money', icon: '💸' },
+                { id: 'subscriptions', label: 'Subscriptions', icon: '🔁' },
+                { id: 'marketplace', label: 'Marketplace', icon: '🏷️' },
+                { id: 'bills', label: 'Bill Payment', icon: '🧾' },
+                { id: 'p2p', label: 'P2P Wallets', icon: '👥' },
+                { id: 'tipping', label: 'Creator Tips', icon: '🎁' },
+                { id: 'crowdfunding', label: 'Crowdfunding', icon: '🌱' },
+                { id: 'campus', label: 'Campus Economy', icon: '🎓' },
+                { id: 'rent', label: 'Rent Payment', icon: '🏠' }
+            ];
+
+            return (
+                <aside className="w-64 bg-white shadow-lg h-screen sticky top-20 overflow-y-auto">
+                    <nav className="p-6">
+                        <div className="space-y-2">
+                            {menuItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setCurrentView(item.id)}
+                                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                                        currentView === item.id
+                                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                            : 'text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    <span className="text-xl">{item.icon}</span>
+                                    <span className="font-medium">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+                </aside>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = ({ user, addNotification, setCurrentView }) => {
+            const [stats, setStats] = useState({
+                totalTransactions: 156,
+                activeSubscriptions: 8,
+                payfiCoins: user?.payfiCoins || 247,
+                monthlySpent: 1247.50
+            });
+
+            const [recentTransactions] = useState([
+                { id: 1, type: 'sent', to: '@alice', amount: 25.50, note: 'Coffee split', time: '2 min ago' },
+                { id: 2, type: 'received', from: '@bob', amount: 50.00, note: 'Rent contribution', time: '1 hour ago' },
+                { id: 3, type: 'subscription', to: 'Netflix', amount: 15.99, note: 'Monthly subscription', time: '1 day ago' },
+                { id: 4, type: 'tip', to: '@creator', amount: 2.00, note: 'Great content!', time: '2 days ago' }
+            ]);
+
+            const quickActions = [
+                { id: 'send', label: 'Send Money', icon: '💸', color: 'blue', view: 'send' },
+                { id: 'receive', label: 'Receive', icon: '💰', color: 'green', view: 'receive' },
+                { id: 'scan', label: 'Scan QR', icon: '📱', color: 'purple', view: 'scan' },
+                { id: 'bills', label: 'Pay Bills', icon: '🧾', color: 'orange', view: 'bills' }
+            ];
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">Dashboard</h2>
+                        <div className="text-right">
+                            <p className="text-gray-600">Good morning, {user?.firstName}!</p>
+                            <p className="text-sm text-gray-500">Ready to make some payments?</p>
+                        </div>
+                    </div>
+
+                    {/* Balance Card */}
+                    <div className="gradient-bg rounded-2xl p-8 text-white">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-white/80 text-lg">Total Balance</p>
+                                <h3 className="text-4xl font-bold mb-2">{user?.balance} SHM</h3>
+                                <p className="text-white/80">≈ ${(parseFloat(user?.balance || 0) * 1.5).toFixed(2)} USD</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-white/80">PayFi Coins</p>
+                                <p className="text-2xl font-bold">{stats.payfiCoins}</p>
+                                <p className="text-white/80 text-sm">≈ ₹{(stats.payfiCoins / 10).toFixed(1)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm">Transactions</p>
+                                    <p className="text-2xl font-bold text-gray-800">{stats.totalTransactions}</p>
+                                </div>
+                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span className="text-2xl">📊</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm">Active Subs</p>
+                                    <p className="text-2xl font-bold text-gray-800">{stats.activeSubscriptions}</p>
+                                </div>
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                    <span className="text-2xl">🔁</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm">This Month</p>
+                                    <p className="text-2xl font-bold text-gray-800">{stats.monthlySpent} SHM</p>
+                                </div>
+                                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <span className="text-2xl">💳</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm">Rewards</p>
+                                    <p className="text-2xl font-bold text-gray-800">{stats.payfiCoins}</p>
+                                </div>
+                                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <span className="text-2xl">🪙</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {quickActions.map(action => (
+                                <button
+                                    key={action.id}
+                                    className="card-hover bg-gray-50 rounded-xl p-6 text-center"
+                                    onClick={() => {
+                                        if (action.view && ['send', 'bills'].includes(action.view)) {
+                                            setCurrentView(action.view);
+                                        } else {
+                                            addNotification({
+                                                title: 'Feature Coming Soon',
+                                                message: `${action.label} feature will be available soon!`,
+                                                type: 'info'
+                                            });
+                                        }
+                                    }}
+                                >
+                                    <div className={`w-16 h-16 bg-${action.color}-100 rounded-full flex items-center justify-center mx-auto mb-3`}>
+                                        <span className="text-3xl">{action.icon}</span>
+                                    </div>
+                                    <p className="font-medium text-gray-800">{action.label}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Recent Transactions */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-gray-800">Recent Transactions</h3>
+                            <button
+                                onClick={() => {
+                                    addNotification({
+                                        title: 'Transaction History',
+                                        message: 'Full transaction history feature coming soon!',
+                                        type: 'info'
+                                    });
+                                }}
+                                className="text-blue-600 font-medium hover:text-blue-700"
+                            >
+                                View All
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            {recentTransactions.map(tx => (
+                                <div key={tx.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div className="flex items-center space-x-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                                            tx.type === 'received' ? 'bg-green-100' :
+                                            tx.type === 'sent' ? 'bg-red-100' :
+                                            tx.type === 'subscription' ? 'bg-blue-100' : 'bg-pink-100'
+                                        }`}>
+                                            <span className="text-xl">
+                                                {tx.type === 'received' ? '💰' :
+                                                 tx.type === 'sent' ? '💸' :
+                                                 tx.type === 'subscription' ? '🔁' : '🎁'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">
+                                                {tx.to || tx.from}
+                                            </p>
+                                            <p className="text-sm text-gray-600">{tx.note}</p>
+                                            <p className="text-xs text-gray-500">{tx.time}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`font-bold text-lg ${
+                                            tx.type === 'received' ? 'text-green-600' : 'text-gray-800'
+                                        }`}>
+                                            {tx.type === 'received' ? '+' : '-'}{tx.amount} SHM
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Send Money Component
+        const SendMoney = ({ addNotification, updateBalance, updatePayFiCoins }) => {
+            const [formData, setFormData] = useState({
+                recipient: '',
+                amount: '',
+                note: ''
+            });
+            const [isLoading, setIsLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setIsLoading(true);
+
+                // Simulate transaction
+                setTimeout(() => {
+                    // Update balance and add rewards
+                    updateBalance(formData.amount, 'subtract');
+                    updatePayFiCoins(Math.floor(parseFloat(formData.amount) * 0.1), 'add'); // 10% cashback in coins
+                   
+                    addNotification({
+                        title: 'Payment Sent Successfully',
+                        message: `Sent ${formData.amount} SHM to ${formData.recipient}`,
+                        type: 'success'
+                    });
+                    setFormData({ recipient: '', amount: '', note: '' });
+                    setIsLoading(false);
+                }, 2000);
+            };
+
+            return (
+                <div className="max-w-2xl mx-auto space-y-8">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Send Money</h2>
+                        <p className="text-gray-600">Send SHM to any wallet address or PayFi username</p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-8 shadow-sm">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Recipient (Wallet Address or @username)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.recipient}
+                                    onChange={(e) => setFormData({...formData, recipient: e.target.value})}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="0x... or @username"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Amount (SHM)
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.amount}
+                                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="0.00"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Note (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.note}
+                                    onChange={(e) => setFormData({...formData, note: e.target.value})}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="What's this for?"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full gradient-bg text-white py-4 rounded-xl font-semibold text-lg hover:shadow-lg transition-all disabled:opacity-50"
+                            >
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <div className="loading-spinner"></div>
+                                        <span>Sending...</span>
+                                    </div>
+                                ) : (
+                                    'Send Money'
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Quick Send Options */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">Quick Send</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {['5', '10', '25', '50'].map(amount => (
+                                <button
+                                    key={amount}
+                                    onClick={() => setFormData({...formData, amount})}
+                                    className="p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all"
+                                >
+                                    <span className="font-bold text-gray-800">{amount} SHM</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Subscriptions Component
+        const Subscriptions = ({ addNotification }) => {
+            const [subscriptions, setSubscriptions] = useState([
+                { id: 1, name: 'Netflix', amount: 15.99, interval: 30, nextPayment: '2024-02-15', status: 'active' },
+                { id: 2, name: 'Spotify', amount: 9.99, interval: 30, nextPayment: '2024-02-20', status: 'active' },
+                { id: 3, name: 'Adobe Creative', amount: 52.99, interval: 30, nextPayment: '2024-02-25', status: 'paused' }
+            ]);
+
+            const [showCreateForm, setShowCreateForm] = useState(false);
+            const [showEditForm, setShowEditForm] = useState(null);
+            const [newSubscription, setNewSubscription] = useState({
+                name: '',
+                recipient: '',
+                amount: '',
+                interval: '30'
+            });
+
+            const handleCreateSubscription = async (e) => {
+                e.preventDefault();
+               
+                const subscription = {
+                    id: Date.now(),
+                    name: newSubscription.name,
+                    amount: parseFloat(newSubscription.amount),
+                    interval: parseInt(newSubscription.interval),
+                    nextPayment: new Date(Date.now() + parseInt(newSubscription.interval) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    status: 'active'
+                };
+
+                setSubscriptions(prev => [...prev, subscription]);
+               
+                addNotification({
+                    title: 'Subscription Created',
+                    message: `Created subscription for ${newSubscription.name} - ${newSubscription.amount} SHM`,
+                    type: 'success'
+                });
+
+                setShowCreateForm(false);
+                setNewSubscription({ name: '', recipient: '', amount: '', interval: '30' });
+            };
+
+            const handleEditSubscription = (subscription) => {
+                setNewSubscription({
+                    name: subscription.name,
+                    recipient: '',
+                    amount: subscription.amount.toString(),
+                    interval: subscription.interval.toString()
+                });
+                setShowEditForm(subscription.id);
+            };
+
+            const handleUpdateSubscription = (e) => {
+                e.preventDefault();
+               
+                setSubscriptions(prev =>
+                    prev.map(sub =>
+                        sub.id === showEditForm
+                            ? {
+                                ...sub,
+                                name: newSubscription.name,
+                                amount: parseFloat(newSubscription.amount),
+                                interval: parseInt(newSubscription.interval)
+                              }
+                            : sub
+                    )
+                );
+
+                addNotification({
+                    title: 'Subscription Updated',
+                    message: `Updated subscription for ${newSubscription.name}`,
+                    type: 'success'
+                });
+
+                setShowEditForm(null);
+                setNewSubscription({ name: '', recipient: '', amount: '', interval: '30' });
+            };
+
+            const handleCancelSubscription = (subscriptionId) => {
+                setSubscriptions(prev =>
+                    prev.map(sub =>
+                        sub.id === subscriptionId
+                            ? { ...sub, status: 'cancelled' }
+                            : sub
+                    )
+                );
+
+                addNotification({
+                    title: 'Subscription Cancelled',
+                    message: 'Subscription has been cancelled successfully',
+                    type: 'success'
+                });
+            };
+
+            const handleRemoveSubscription = (subscriptionId) => {
+                setSubscriptions(prev => prev.filter(sub => sub.id !== subscriptionId));
+               
+                addNotification({
+                    title: 'Subscription Removed',
+                    message: 'Subscription has been removed from your list',
+                    type: 'info'
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">Subscriptions</h2>
+                        <button
+                            onClick={() => setShowCreateForm(true)}
+                            className="gradient-bg text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg"
+                        >
+                            + New Subscription
+                        </button>
+                    </div>
+
+                    {/* Active Subscriptions */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {subscriptions.map(sub => (
+                            <div key={sub.id} className="bg-white rounded-xl p-6 shadow-sm card-hover">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-xl font-bold text-gray-800">{sub.name}</h3>
+                                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                        sub.status === 'active' ? 'bg-green-100 text-green-800' :
+                                        sub.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-red-100 text-red-800'
+                                    }`}>
+                                        {sub.status}
+                                    </span>
+                                </div>
+                               
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Amount</span>
+                                        <span className="font-bold">{sub.amount} SHM</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Interval</span>
+                                        <span>{sub.interval} days</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Next Payment</span>
+                                        <span>{sub.nextPayment}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex space-x-2 mt-6">
+                                    <button
+                                        onClick={() => handleEditSubscription(sub)}
+                                        className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleRemoveSubscription(sub.id)}
+                                        className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-medium hover:bg-red-200"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Create/Edit Subscription Modal */}
+                    {(showCreateForm || showEditForm) && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">
+                                    {showEditForm ? 'Edit Subscription' : 'Create New Subscription'}
+                                </h3>
+                               
+                                <form onSubmit={showEditForm ? handleUpdateSubscription : handleCreateSubscription} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Service Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newSubscription.name}
+                                            onChange={(e) => setNewSubscription({...newSubscription, name: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Netflix, Spotify, etc."
+                                            required
+                                        />
+                                    </div>
+
+                                    {!showEditForm && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Recipient Address
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={newSubscription.recipient}
+                                                onChange={(e) => setNewSubscription({...newSubscription, recipient: e.target.value})}
+                                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                                placeholder="0x..."
+                                                required
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Amount (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={newSubscription.amount}
+                                            onChange={(e) => setNewSubscription({...newSubscription, amount: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="0.00"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Billing Interval
+                                        </label>
+                                        <select
+                                            value={newSubscription.interval}
+                                            onChange={(e) => setNewSubscription({...newSubscription, interval: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="7">Weekly (7 days)</option>
+                                            <option value="30">Monthly (30 days)</option>
+                                            <option value="365">Yearly (365 days)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowCreateForm(false);
+                                                setShowEditForm(null);
+                                                setNewSubscription({ name: '', recipient: '', amount: '', interval: '30' });
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 gradient-bg text-white py-3 rounded-xl font-medium"
+                                        >
+                                            {showEditForm ? 'Update' : 'Create'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Marketplace Component
+        const Marketplace = ({ addNotification, updateBalance, updatePayFiCoins }) => {
+            const [activeTab, setActiveTab] = useState('buy');
+            const [coupons, setCoupons] = useState([
+                { id: 1, title: 'Starbucks $10 Gift Card', price: 8.5, seller: '@coffee_lover', expiry: '2024-06-15', type: 'buy' },
+                { id: 2, title: 'Movie Theater Tickets (2x)', price: 15.0, seller: '@movie_fan', expiry: '2024-03-20', type: 'buy' },
+                { id: 3, title: 'Restaurant 20% Off Coupon', price: 5.0, seller: '@foodie', expiry: '2024-02-28', type: 'buy' },
+                { id: 4, title: 'My Amazon Gift Card', price: 45.0, expiry: '2024-08-10', type: 'sell', status: 'listed' },
+                { id: 5, title: 'Premium Gym Membership', currentBid: 85.0, timeLeft: '2h 15m', bidders: 7, type: 'auction' }
+            ]);
+
+            const [showBidModal, setShowBidModal] = useState(null);
+            const [bidAmount, setBidAmount] = useState('');
+
+            const handleBuyCoupon = (couponId, price, title) => {
+                updateBalance(price, 'subtract');
+                updatePayFiCoins(Math.floor(price * 0.05), 'add'); // 5% cashback in coins
+               
+                addNotification({
+                    title: 'Coupon Purchased',
+                    message: `Successfully purchased "${title}" for ${price} SHM`,
+                    type: 'success'
+                });
+            };
+
+            const handlePlaceBid = (couponId) => {
+                if (!bidAmount || parseFloat(bidAmount) <= 0) {
+                    addNotification({
+                        title: 'Invalid Bid',
+                        message: 'Please enter a valid bid amount',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                setCoupons(prev =>
+                    prev.map(coupon =>
+                        coupon.id === couponId
+                            ? {
+                                ...coupon,
+                                currentBid: parseFloat(bidAmount),
+                                bidders: coupon.bidders + 1
+                              }
+                            : coupon
+                    )
+                );
+
+                addNotification({
+                    title: 'Bid Placed Successfully',
+                    message: `Placed bid of ${bidAmount} SHM`,
+                    type: 'success'
+                });
+
+                setShowBidModal(null);
+                setBidAmount('');
+            };
+
+            const handleEditCoupon = (couponId) => {
+                addNotification({
+                    title: 'Edit Feature',
+                    message: 'Coupon editing functionality is now available',
+                    type: 'info'
+                });
+            };
+
+            const handleRemoveCoupon = (couponId) => {
+                setCoupons(prev => prev.filter(coupon => coupon.id !== couponId));
+                addNotification({
+                    title: 'Coupon Removed',
+                    message: 'Your coupon has been removed from the marketplace',
+                    type: 'success'
+                });
+            };
+
+            const filteredCoupons = coupons.filter(coupon => {
+                if (activeTab === 'buy') return coupon.type === 'buy';
+                if (activeTab === 'sell') return coupon.type === 'sell';
+                if (activeTab === 'auction') return coupon.type === 'auction';
+                return true;
+            });
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">Coupon Marketplace</h2>
+                        <button className="gradient-bg text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg">
+                            + List Coupon
+                        </button>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg max-w-md">
+                        {['buy', 'sell', 'auction'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-1 py-3 px-6 rounded-md text-sm font-medium transition-all ${
+                                    activeTab === tab
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Coupons Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredCoupons.map(coupon => (
+                            <div key={coupon.id} className="bg-white rounded-xl p-6 shadow-sm card-hover nft-shimmer">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="font-bold text-gray-800">{coupon.title}</h3>
+                                    {coupon.type === 'buy' && (
+                                        <span className="px-2 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+                                            For Sale
+                                        </span>
+                                    )}
+                                    {coupon.type === 'auction' && (
+                                        <span className="px-2 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full">
+                                            Auction
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="space-y-3 mb-6">
+                                    {coupon.type === 'auction' ? (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Current Bid</span>
+                                                <span className="font-bold text-orange-600">{coupon.currentBid} SHM</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Time Left</span>
+                                                <span className="font-medium text-red-600">{coupon.timeLeft}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Bidders</span>
+                                                <span>{coupon.bidders}</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Price</span>
+                                                <span className="font-bold text-green-600">{coupon.price} SHM</span>
+                                            </div>
+                                            {coupon.seller && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Seller</span>
+                                                    <span>{coupon.seller}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Expires</span>
+                                                <span>{coupon.expiry}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {coupon.type === 'buy' && (
+                                    <button
+                                        onClick={() => handleBuyCoupon(coupon.id, coupon.price, coupon.title)}
+                                        className="w-full bg-green-600 text-white py-3 rounded-xl font-medium hover:bg-green-700"
+                                    >
+                                        Buy Now
+                                    </button>
+                                )}
+                                {coupon.type === 'auction' && (
+                                    <button
+                                        onClick={() => setShowBidModal(coupon.id)}
+                                        className="w-full bg-orange-600 text-white py-3 rounded-xl font-medium hover:bg-orange-700"
+                                    >
+                                        Place Bid
+                                    </button>
+                                )}
+                                {coupon.type === 'sell' && (
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => handleEditCoupon(coupon.id)}
+                                            className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleRemoveCoupon(coupon.id)}
+                                            className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-medium hover:bg-red-200"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Bid Modal */}
+                    {showBidModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">Place Your Bid</h3>
+                               
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Bid Amount (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={bidAmount}
+                                            onChange={(e) => setBidAmount(e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500"
+                                            placeholder="Enter your bid"
+                                        />
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setShowBidModal(null);
+                                                setBidAmount('');
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handlePlaceBid(showBidModal)}
+                                            className="flex-1 bg-orange-600 text-white py-3 rounded-xl font-medium hover:bg-orange-700"
+                                        >
+                                            Place Bid
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Bill Payment Component
+        const BillPayment = ({ addNotification, updateBalance }) => {
+            const [bills, setBills] = useState([
+                { id: 1, name: 'Electricity Bill', provider: 'State Power Corp', amount: 125.50, dueDate: '2024-02-15', status: 'pending' },
+                { id: 2, name: 'Internet Bill', provider: 'Fiber Net', amount: 45.00, dueDate: '2024-02-20', status: 'pending' },
+                { id: 3, name: 'Water Bill', provider: 'City Water Dept', amount: 32.75, dueDate: '2024-02-25', status: 'paid' }
+            ]);
+
+            const handlePayBill = (bill) => {
+                setBills(prev =>
+                    prev.map(b =>
+                        b.id === bill.id
+                            ? { ...b, status: 'paid' }
+                            : b
+                    )
+                );
+               
+                updateBalance(bill.amount, 'subtract');
+               
+                addNotification({
+                    title: 'Bill Paid Successfully',
+                    message: `Paid ${bill.amount} SHM for ${bill.name}`,
+                    type: 'success'
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">Bill Payment</h2>
+                        <button className="gradient-bg text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg">
+                            + Add Bill
+                        </button>
+                    </div>
+
+                    {/* Bills List */}
+                    <div className="space-y-4">
+                        {bills.map(bill => (
+                            <div key={bill.id} className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <span className="text-2xl">🧾</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-800">{bill.name}</h3>
+                                            <p className="text-gray-600">{bill.provider}</p>
+                                            <p className="text-sm text-gray-500">Due: {bill.dueDate}</p>
+                                        </div>
+                                    </div>
+                                   
+                                    <div className="text-right">
+                                        <p className="text-2xl font-bold text-gray-800">{bill.amount} SHM</p>
+                                        <div className="flex items-center space-x-3 mt-2">
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                                bill.status === 'paid'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {bill.status}
+                                            </span>
+                                            {bill.status === 'pending' && (
+                                                <button
+                                                    onClick={() => handlePayBill(bill)}
+                                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"
+                                                >
+                                                    Pay Now
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Quick Pay Categories */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Pay Categories</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {[
+                                { name: 'Electricity', icon: '⚡', color: 'yellow' },
+                                { name: 'Water', icon: '💧', color: 'blue' },
+                                { name: 'Internet', icon: '🌐', color: 'purple' },
+                                { name: 'Gas', icon: '🔥', color: 'red' }
+                            ].map(category => (
+                                <button
+                                    key={category.name}
+                                    className="card-hover bg-gray-50 rounded-xl p-6 text-center"
+                                    onClick={() => {
+                                        addNotification({
+                                            title: 'Category Selected',
+                                            message: `${category.name} bill payment option selected`,
+                                            type: 'info'
+                                        });
+                                    }}
+                                >
+                                    <div className={`w-16 h-16 bg-${category.color}-100 rounded-full flex items-center justify-center mx-auto mb-3`}>
+                                        <span className="text-3xl">{category.icon}</span>
+                                    </div>
+                                    <p className="font-medium text-gray-800">{category.name}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // P2P Wallets Component
+        const P2PWallets = ({ addNotification, updateBalance }) => {
+            const [groups, setGroups] = useState([
+                { id: 1, name: 'Roommates', members: 4, balance: 247.50, expenses: 12 },
+                { id: 2, name: 'Trip to Goa', members: 6, balance: -45.25, expenses: 8 },
+                { id: 3, name: 'Office Lunch', members: 8, balance: 12.75, expenses: 15 }
+            ]);
+
+            const [showExpenseModal, setShowExpenseModal] = useState(null);
+            const [expenseData, setExpenseData] = useState({
+                description: '',
+                amount: '',
+                splitType: 'equal'
+            });
+
+            const handleAddExpense = (groupId) => {
+                if (!expenseData.description || !expenseData.amount) {
+                    addNotification({
+                        title: 'Invalid Input',
+                        message: 'Please fill in all expense details',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                setGroups(prev =>
+                    prev.map(group =>
+                        group.id === groupId
+                            ? {
+                                ...group,
+                                expenses: group.expenses + 1,
+                                balance: group.balance + (parseFloat(expenseData.amount) / group.members)
+                              }
+                            : group
+                    )
+                );
+
+                addNotification({
+                    title: 'Expense Added',
+                    message: `Added "${expenseData.description}" for ${expenseData.amount} SHM`,
+                    type: 'success'
+                });
+
+                setShowExpenseModal(null);
+                setExpenseData({ description: '', amount: '', splitType: 'equal' });
+            };
+
+            const handleSettleUp = (groupId) => {
+                setGroups(prev =>
+                    prev.map(group =>
+                        group.id === groupId
+                            ? { ...group, balance: 0 }
+                            : group
+                    )
+                );
+
+                addNotification({
+                    title: 'Settlement Complete',
+                    message: 'All balances have been settled',
+                    type: 'success'
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">P2P Wallets</h2>
+                        <button className="gradient-bg text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg">
+                            + Create Group
+                        </button>
+                    </div>
+
+                    {/* Groups */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {groups.map(group => (
+                            <div key={group.id} className="bg-white rounded-xl p-6 shadow-sm card-hover">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-xl font-bold text-gray-800">{group.name}</h3>
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                                        {group.members} members
+                                    </span>
+                                </div>
+                               
+                                <div className="space-y-3 mb-6">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Your Balance</span>
+                                        <span className={`font-bold ${
+                                            group.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                            {group.balance >= 0 ? '+' : ''}{group.balance} SHM
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Total Expenses</span>
+                                        <span>{group.expenses}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={() => setShowExpenseModal(group.id)}
+                                        className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200"
+                                    >
+                                        Add Expense
+                                    </button>
+                                    <button
+                                        onClick={() => handleSettleUp(group.id)}
+                                        className="flex-1 bg-green-100 text-green-700 py-2 rounded-lg font-medium hover:bg-green-200"
+                                    >
+                                        Settle Up
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Add Expense Modal */}
+                    {showExpenseModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">Add Expense</h3>
+                               
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Description
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={expenseData.description}
+                                            onChange={(e) => setExpenseData({...expenseData, description: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Dinner, groceries, etc."
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Amount (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={expenseData.amount}
+                                            onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Split Type
+                                        </label>
+                                        <select
+                                            value={expenseData.splitType}
+                                            onChange={(e) => setExpenseData({...expenseData, splitType: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="equal">Split Equally</option>
+                                            <option value="custom">Custom Split</option>
+                                            <option value="percentage">By Percentage</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setShowExpenseModal(null);
+                                                setExpenseData({ description: '', amount: '', splitType: 'equal' });
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handleAddExpense(showExpenseModal)}
+                                            className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700"
+                                        >
+                                            Add Expense
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Split Bill Feature */}
+                    <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-8 text-white">
+                        <h3 className="text-2xl font-bold mb-4">Split Bills Easily</h3>
+                        <p className="text-white/90 mb-6">
+                            Create groups, add expenses, and split bills automatically with your friends and family.
+                        </p>
+                        <button className="bg-white text-orange-600 px-8 py-3 rounded-xl font-medium hover:bg-gray-50">
+                            Learn More
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Creator Tipping Component
+        const CreatorTipping = ({ addNotification, updateBalance, updatePayFiCoins }) => {
+            const [creators] = useState([
+                { id: 1, name: 'Digital Artist', username: '@artcreator', followers: '12.5K', totalTipped: '2,847 SHM', avatar: '🎨' },
+                { id: 2, name: 'Music Producer', username: '@beatmaker', followers: '8.2K', totalTipped: '1,923 SHM', avatar: '🎵' },
+                { id: 3, name: 'Content Creator', username: '@vlogger', followers: '25.1K', totalTipped: '4,156 SHM', avatar: '📹' }
+            ]);
+
+            const [showCustomTipModal, setShowCustomTipModal] = useState(null);
+            const [customTipAmount, setCustomTipAmount] = useState('');
+
+            const handleTipCreator = (creator, amount) => {
+                updateBalance(amount, 'subtract');
+                updatePayFiCoins(Math.floor(parseFloat(amount) * 0.2), 'add'); // 20% cashback in coins for tips
+               
+                addNotification({
+                    title: 'Tip Sent Successfully',
+                    message: `Tipped ${amount} SHM to ${creator.name}`,
+                    type: 'success'
+                });
+            };
+
+            const handleCustomTip = (creator) => {
+                if (!customTipAmount || parseFloat(customTipAmount) <= 0) {
+                    addNotification({
+                        title: 'Invalid Amount',
+                        message: 'Please enter a valid tip amount',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                handleTipCreator(creator, customTipAmount);
+                setShowCustomTipModal(null);
+                setCustomTipAmount('');
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Support Creators</h2>
+                        <p className="text-gray-600">Send micro-tips starting from 0.01 SHM</p>
+                    </div>
+
+                    {/* Featured Creators */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {creators.map(creator => (
+                            <div key={creator.id} className="bg-white rounded-xl p-6 shadow-sm card-hover">
+                                <div className="text-center mb-6">
+                                    <div className="w-20 h-20 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <span className="text-4xl">{creator.avatar}</span>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800">{creator.name}</h3>
+                                    <p className="text-gray-600">{creator.username}</p>
+                                    <p className="text-sm text-gray-500">{creator.followers} followers</p>
+                                </div>
+
+                                <div className="text-center mb-6">
+                                    <p className="text-sm text-gray-600">Total Tips Received</p>
+                                    <p className="text-2xl font-bold text-pink-600">{creator.totalTipped}</p>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                    {['0.1', '1', '5'].map(amount => (
+                                        <button
+                                            key={amount}
+                                            onClick={() => handleTipCreator(creator, amount)}
+                                            className="py-2 px-3 border border-pink-200 rounded-lg hover:bg-pink-50 font-medium text-pink-600"
+                                        >
+                                            {amount} SHM
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => setShowCustomTipModal(creator)}
+                                    className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-xl font-medium hover:shadow-lg"
+                                >
+                                    Custom Tip
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Custom Tip Modal */}
+                    {showCustomTipModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">
+                                    Tip {showCustomTipModal.name}
+                                </h3>
+                               
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Tip Amount (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={customTipAmount}
+                                            onChange={(e) => setCustomTipAmount(e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500"
+                                            placeholder="Enter tip amount"
+                                        />
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setShowCustomTipModal(null);
+                                                setCustomTipAmount('');
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handleCustomTip(showCustomTipModal)}
+                                            className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-xl font-medium"
+                                        >
+                                            Send Tip
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Top Tippers */}
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-8 text-white">
+                        <h3 className="text-2xl font-bold mb-6">🏆 Top Tippers This Week</h3>
+                        <div className="space-y-4">
+                            {[
+                                { rank: '🥇', name: '@crypto_whale', amount: '247 SHM' },
+                                { rank: '🥈', name: '@art_lover', amount: '189 SHM' },
+                                { rank: '🥉', name: '@supporter123', amount: '156 SHM' }
+                            ].map((tipper, index) => (
+                                <div key={index} className="flex justify-between items-center">
+                                    <div className="flex items-center space-x-3">
+                                        <span className="text-2xl">{tipper.rank}</span>
+                                        <span className="font-medium">{tipper.name}</span>
+                                    </div>
+                                    <span className="font-bold">{tipper.amount}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Crowdfunding Component
+        const Crowdfunding = ({ addNotification, updateBalance, updatePayFiCoins }) => {
+            const [campaigns, setCampaigns] = useState([
+                { id: 1, title: 'Community Garden Project', goal: 5000, raised: 3247, contributors: 127, daysLeft: 15, description: 'Building a sustainable community garden' },
+                { id: 2, title: 'Student Scholarship Fund', goal: 10000, raised: 7823, contributors: 234, daysLeft: 8, description: 'Supporting underprivileged students' },
+                { id: 3, title: 'Local Animal Shelter', goal: 2500, raised: 1876, contributors: 89, daysLeft: 22, description: 'Help our furry friends' }
+            ]);
+
+            const [showContributeModal, setShowContributeModal] = useState(null);
+            const [showCreateModal, setShowCreateModal] = useState(false);
+            const [contributeAmount, setContributeAmount] = useState('');
+            const [newCampaign, setNewCampaign] = useState({
+                title: '',
+                description: '',
+                goal: '',
+                duration: '30'
+            });
+
+            const handleContribute = (campaignId) => {
+                if (!contributeAmount || parseFloat(contributeAmount) <= 0) {
+                    addNotification({
+                        title: 'Invalid Amount',
+                        message: 'Please enter a valid contribution amount',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                setCampaigns(prev =>
+                    prev.map(campaign =>
+                        campaign.id === campaignId
+                            ? {
+                                ...campaign,
+                                raised: campaign.raised + parseFloat(contributeAmount),
+                                contributors: campaign.contributors + 1
+                              }
+                            : campaign
+                    )
+                );
+
+                updateBalance(contributeAmount, 'subtract');
+                updatePayFiCoins(Math.floor(parseFloat(contributeAmount) * 0.15), 'add'); // 15% cashback in coins for contributions
+
+                addNotification({
+                    title: 'Contribution Successful',
+                    message: `Contributed ${contributeAmount} SHM to campaign`,
+                    type: 'success'
+                });
+
+                setShowContributeModal(null);
+                setContributeAmount('');
+            };
+
+            const handleStartCampaign = (e) => {
+                e.preventDefault();
+               
+                const campaign = {
+                    id: Date.now(),
+                    title: newCampaign.title,
+                    description: newCampaign.description,
+                    goal: parseFloat(newCampaign.goal),
+                    raised: 0,
+                    contributors: 0,
+                    daysLeft: parseInt(newCampaign.duration)
+                };
+
+                setCampaigns(prev => [...prev, campaign]);
+               
+                addNotification({
+                    title: 'Campaign Created',
+                    message: `Successfully created "${newCampaign.title}" campaign`,
+                    type: 'success'
+                });
+
+                setShowCreateModal(false);
+                setNewCampaign({ title: '', description: '', goal: '', duration: '30' });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-bold text-gray-800">Crowdfunding</h2>
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="gradient-bg text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg"
+                        >
+                            + Start Campaign
+                        </button>
+                    </div>
+
+                    {/* Campaigns */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {campaigns.map(campaign => {
+                            const progress = (campaign.raised / campaign.goal) * 100;
+                            return (
+                                <div key={campaign.id} className="bg-white rounded-xl p-6 shadow-sm card-hover">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{campaign.title}</h3>
+                                    <p className="text-gray-600 mb-4">{campaign.description}</p>
+                                   
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="font-semibold">{campaign.raised} SHM raised</span>
+                                            <span className="text-gray-600">{campaign.goal} SHM goal</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                            <div
+                                                className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all"
+                                                style={{ width: `${Math.min(progress, 100)}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-500 mt-2">
+                                            <span>{Math.round(progress)}% funded</span>
+                                            <span>{campaign.daysLeft} days left</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center mb-4">
+                                        <span className="text-sm text-gray-600">
+                                            <span className="font-semibold">{campaign.contributors}</span> contributors
+                                        </span>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setShowContributeModal(campaign.id)}
+                                        className="w-full gradient-bg text-white py-3 rounded-xl font-medium hover:shadow-lg"
+                                    >
+                                        Contribute Now
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Contribute Modal */}
+                    {showContributeModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">Make a Contribution</h3>
+                               
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Contribution Amount (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={contributeAmount}
+                                            onChange={(e) => setContributeAmount(e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Enter amount"
+                                        />
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            onClick={() => {
+                                                setShowContributeModal(null);
+                                                setContributeAmount('');
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handleContribute(showContributeModal)}
+                                            className="flex-1 gradient-bg text-white py-3 rounded-xl font-medium"
+                                        >
+                                            Contribute
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Start Campaign Modal */}
+                    {showCreateModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">Start New Campaign</h3>
+                               
+                                <form onSubmit={handleStartCampaign} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Campaign Title
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newCampaign.title}
+                                            onChange={(e) => setNewCampaign({...newCampaign, title: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Enter campaign title"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Description
+                                        </label>
+                                        <textarea
+                                            value={newCampaign.description}
+                                            onChange={(e) => setNewCampaign({...newCampaign, description: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Describe your campaign"
+                                            rows="3"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Funding Goal (SHM)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={newCampaign.goal}
+                                            onChange={(e) => setNewCampaign({...newCampaign, goal: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                            placeholder="0.00"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Campaign Duration
+                                        </label>
+                                        <select
+                                            value={newCampaign.duration}
+                                            onChange={(e) => setNewCampaign({...newCampaign, duration: e.target.value})}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="7">7 days</option>
+                                            <option value="14">14 days</option>
+                                            <option value="30">30 days</option>
+                                            <option value="60">60 days</option>
+                                            <option value="90">90 days</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowCreateModal(false);
+                                                setNewCampaign({ title: '', description: '', goal: '', duration: '30' });
+                                            }}
+                                            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 gradient-bg text-white py-3 rounded-xl font-medium"
+                                        >
+                                            Start Campaign
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Campus Economy Component
+        const CampusEconomy = ({ addNotification, updateBalance }) => {
+            const [campusBalance] = useState({ tokens: 1247, points: 847 });
+            const [items] = useState([
+                { id: 1, name: 'Cafeteria Lunch', price: 12, type: 'food', category: 'Food' },
+                { id: 2, name: 'Library Late Fee Waiver', price: 5, type: 'service', category: 'Services' },
+                { id: 3, name: 'Spring Concert Ticket', price: 50, type: 'event', category: 'Events' },
+                { id: 4, name: 'Gym Access Pass', price: 25, type: 'service', category: 'Fitness' }
+            ]);
+
+            const handleBuyItem = (item) => {
+                // Convert campus tokens to SHM (1 CT = 0.1 SHM for demo)
+                const shmAmount = (item.price * 0.1).toFixed(2);
+                updateBalance(shmAmount, 'subtract');
+               
+                addNotification({
+                    title: 'Purchase Successful',
+                    message: `Bought ${item.name} for ${item.price} CT`,
+                    type: 'success'
+                });
+            };
+
+            const handleCategoryClick = (category) => {
+                addNotification({
+                    title: 'Category Selected',
+                    message: `Browsing ${category.name} items`,
+                    type: 'info'
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Campus Economy</h2>
+                        <p className="text-gray-600">Pay fees, buy tickets, and earn rewards</p>
+                    </div>
+
+                    {/* Campus Balance */}
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-8 text-white">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-white/80">Campus Tokens</p>
+                                <h3 className="text-4xl font-bold">{campusBalance.tokens} CT</h3>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-white/80">Loyalty Points</p>
+                                <h3 className="text-3xl font-bold">{campusBalance.points}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Categories */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                            { name: 'Food', icon: '🍕', color: 'red' },
+                            { name: 'Events', icon: '🎪', color: 'blue' },
+                            { name: 'Services', icon: '🛠️', color: 'purple' },
+                            { name: 'Fitness', icon: '💪', color: 'green' }
+                        ].map(category => (
+                            <button
+                                key={category.name}
+                                onClick={() => handleCategoryClick(category)}
+                                className="card-hover bg-white rounded-xl p-6 text-center shadow-sm"
+                            >
+                                <div className={`w-16 h-16 bg-${category.color}-100 rounded-full flex items-center justify-center mx-auto mb-3`}>
+                                    <span className="text-3xl">{category.icon}</span>
+                                </div>
+                                <p className="font-medium text-gray-800">{category.name}</p>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Campus Items */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {items.map(item => (
+                            <div key={item.id} className="bg-white rounded-xl p-6 shadow-sm card-hover">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="font-bold text-gray-800">{item.name}</h3>
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                                        {item.category}
+                                    </span>
+                                </div>
+                               
+                                <div className="flex justify-between items-center">
+                                    <span className="text-2xl font-bold text-green-600">{item.price} CT</span>
+                                    <button
+                                        onClick={() => handleBuyItem(item)}
+                                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700"
+                                    >
+                                        Buy Now
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Rent Payment Component
+        const RentPayment = ({ addNotification, updateBalance }) => {
+            const [rentInfo, setRentInfo] = useState({
+                amount: 1200,
+                dueDate: '2024-02-01',
+                landlord: 'Property Management Co.',
+                property: 'Apartment 4B',
+                status: 'pending'
+            });
+
+            const [rentHistory] = useState([
+                { id: 1, amount: 1200, date: '2024-01-01', status: 'paid' },
+                { id: 2, amount: 1200, date: '2023-12-01', status: 'paid' },
+                { id: 3, amount: 1200, date: '2023-11-01', status: 'paid' }
+            ]);
+
+            const handlePayRent = () => {
+                setRentInfo(prev => ({ ...prev, status: 'paid' }));
+                updateBalance(rentInfo.amount, 'subtract');
+               
+                addNotification({
+                    title: 'Rent Paid Successfully',
+                    message: `Paid ${rentInfo.amount} SHM rent for ${rentInfo.property}`,
+                    type: 'success'
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    <h2 className="text-3xl font-bold text-gray-800">Rent Payment</h2>
+
+                    {/* Next Rent Payment */}
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-8 text-white">
+                        <h3 className="text-2xl font-bold mb-4">Next Rent Payment</h3>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-4xl font-bold">{rentInfo.amount} SHM</p>
+                                <p className="text-white/80">Due: {rentInfo.dueDate}</p>
+                                <p className="text-white/80">{rentInfo.property}</p>
+                                <p className="text-white/80">{rentInfo.landlord}</p>
+                            </div>
+                            <div className="text-right">
+                                {rentInfo.status === 'pending' ? (
+                                    <button
+                                        onClick={handlePayRent}
+                                        className="bg-white text-indigo-600 px-8 py-4 rounded-xl font-medium hover:bg-gray-50"
+                                    >
+                                        Pay Now
+                                    </button>
+                                ) : (
+                                    <div className="bg-green-100 text-green-800 px-6 py-3 rounded-xl font-medium">
+                                        ✓ Paid
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Rent History */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6">Payment History</h3>
+                        <div className="space-y-4">
+                            {rentHistory.map(payment => (
+                                <div key={payment.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <p className="font-bold text-gray-800">{payment.amount} SHM</p>
+                                        <p className="text-gray-600">{payment.date}</p>
+                                    </div>
+                                    <span className="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                        {payment.status}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Notification Toasts Component
+        const NotificationToasts = ({ notifications, removeNotification }) => {
+            useEffect(() => {
+                notifications.forEach(notification => {
+                    const timer = setTimeout(() => {
+                        removeNotification(notification.id);
+                    }, 5000);
+
+                    return () => clearTimeout(timer);
+                });
+            }, [notifications]);
+
+            return (
+                <div className="fixed top-24 right-6 z-50 space-y-3 max-w-sm">
+                    {notifications.slice(0, 3).map(notification => (
+                        <div
+                            key={notification.id}
+                            className={`slide-up p-4 rounded-xl shadow-lg border-l-4 ${
+                                notification.type === 'success' ? 'bg-green-50 border-green-500' :
+                                notification.type === 'error' ? 'bg-red-50 border-red-500' :
+                                'bg-blue-50 border-blue-500'
+                            }`}
+                        >
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-800">{notification.title}</h4>
+                                    <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                                </div>
+                                <button
+                                    onClick={() => removeNotification(notification.id)}
+                                    className="text-gray-400 hover:text-gray-600 ml-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<PayFiApp />, document.getElementById('root'));
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'981fa3b0a03969a5',t:'MTc1ODM1MzY1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
